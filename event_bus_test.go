@@ -91,8 +91,8 @@ func TestUnsubscribeMethod(t *testing.T) {
 	if bus.Unsubscribe("topic", h.Handle) == nil {
 		t.Fail()
 	}
-	bus.Publish("topic")
-	bus.WaitAsync()
+	wg := bus.PublishWaitAsync("topic")
+	bus.WaitAsync(wg)
 
 	if h.val != 1 {
 		t.Fail()
@@ -122,9 +122,9 @@ func TestSubcribeOnceAsync(t *testing.T) {
 	})
 
 	bus.Publish("topic", 10, &results)
-	bus.Publish("topic", 10, &results)
+	wg := bus.PublishWaitAsync("topic", 10, &results)
 
-	bus.WaitAsync()
+	bus.WaitAsync(wg)
 
 	if len(results) != 1 {
 		t.Fail()
@@ -146,9 +146,9 @@ func TestSubscribeAsyncTransactional(t *testing.T) {
 	}, true)
 
 	bus.Publish("topic", 1, &results, "1s")
-	bus.Publish("topic", 2, &results, "0s")
+	wg := bus.PublishWaitAsync("topic", 2, &results, "0s")
 
-	bus.WaitAsync()
+	bus.WaitAsync(wg)
 
 	if len(results) != 2 {
 		t.Fail()
@@ -168,7 +168,7 @@ func TestSubscribeAsync(t *testing.T) {
 	}, false)
 
 	bus.Publish("topic", 1, results)
-	bus.Publish("topic", 2, results)
+	wg := bus.PublishWaitAsync("topic", 2, results)
 
 	numResults := 0
 
@@ -178,7 +178,7 @@ func TestSubscribeAsync(t *testing.T) {
 		}
 	}()
 
-	bus.WaitAsync()
+	bus.WaitAsync(wg)
 	println(2)
 
 	time.Sleep(10 * time.Millisecond)

@@ -18,12 +18,13 @@ type BusSubscriber interface {
 //BusPublisher defines publishing-related bus behavior
 type BusPublisher interface {
 	Publish(topic string, args ...interface{})
+	PublishWaitAsync(topic string, args ...interface{}) *sync.WaitGroup
 }
 
 //BusController defines bus control behavior (checking handler's presence, synchronization)
 type BusController interface {
 	HasCallback(topic string) bool
-	WaitAsync()
+	WaitAsync(wg *sync.WaitGroup)
 }
 
 //Bus englobes global (subscribe, publish, control) bus behavior
@@ -36,8 +37,7 @@ type Bus interface {
 // EventBus - box for handlers and callbacks.
 type EventBus struct {
 	handlers map[string][]*eventHandler
-	lock     sync.Mutex // a lock for the map
-	wg       sync.WaitGroup
+	lock     sync.RWMutex // a lock for the map
 }
 
 type eventHandler struct {
@@ -52,8 +52,7 @@ type eventHandler struct {
 func New() Bus {
 	b := &EventBus{
 		make(map[string][]*eventHandler),
-		sync.Mutex{},
-		sync.WaitGroup{},
+		sync.RWMutex{},
 	}
 	return Bus(b)
 }
@@ -106,8 +105,8 @@ func (bus *EventBus) SubscribeOnceAsync(topic string, fn interface{}) error {
 
 // HasCallback returns true if exists any callback subscribed to the topic.
 func (bus *EventBus) HasCallback(topic string) bool {
-	bus.lock.Lock()
-	defer bus.lock.Unlock()
+	bus.lock.RLock()
+	defer bus.lock.RUnlock()
 	_, ok := bus.handlers[topic]
 	if ok {
 		return len(bus.handlers[topic]) > 0
@@ -129,8 +128,16 @@ func (bus *EventBus) Unsubscribe(topic string, handler interface{}) error {
 
 // Publish executes callback defined for a topic. Any additional argument will be transferred to the callback.
 func (bus *EventBus) Publish(topic string, args ...interface{}) {
-	bus.lock.Lock() // will unlock if handler is not found or always after setUpPublish
-	defer bus.lock.Unlock()
+	// bus.lock.Lock() // will unlock if handler is not found or always after setUpPublish
+	// defer bus.lock.Unlock()
+	bus.PublishWaitAsync(topic, args)
+}
+
+// Publish executes callback defined for a topic. Any additional argument will be transferred to the callback.
+func (bus *EventBus) PublishWaitAsync(topic string, args ...interface{}) *sync.WaitGroup {
+	// bus.lock.RLock() // will unlock if handler is not found or always after setUpPublish
+	// defer bus.lock.RUnlock() // 执行once handler， 无法确定有多少个读锁，所以通过copy方式解决多线程处理问题
+	wg := &sync.WaitGroup{} // 同步锁
 	if handlers, ok := bus.handlers[topic]; ok && 0 < len(handlers) {
 		// Handlers slice may be changed by removeHandler and Unsubscribe during iteration,
 		// so make a copy and iterate the copied slice.
@@ -138,21 +145,22 @@ func (bus *EventBus) Publish(topic string, args ...interface{}) {
 		copy(copyHandlers, handlers)
 		for i, handler := range copyHandlers {
 			if handler.flagOnce {
-				bus.removeHandler(topic, i)
+				bus.lock.Lock()             // 加锁map
+				bus.removeHandler(topic, i) // 修改map， Unsubscribe(topic, handler)
+				bus.lock.Unlock()           // 解锁map
 			}
 			if !handler.async {
 				bus.doPublish(handler, topic, args...)
 			} else {
-				bus.wg.Add(1)
+				wg.Add(1)
 				if handler.transactional {
-					bus.lock.Unlock()
 					handler.Lock()
-					bus.lock.Lock()
 				}
-				go bus.doPublishAsync(handler, topic, args...)
+				go bus.doPublishAsync(wg, handler, topic, args...)
 			}
 		}
 	}
+	return wg
 }
 
 func (bus *EventBus) doPublish(handler *eventHandler, topic string, args ...interface{}) {
@@ -160,8 +168,8 @@ func (bus *EventBus) doPublish(handler *eventHandler, topic string, args ...inte
 	handler.callBack.Call(passedArguments)
 }
 
-func (bus *EventBus) doPublishAsync(handler *eventHandler, topic string, args ...interface{}) {
-	defer bus.wg.Done()
+func (bus *EventBus) doPublishAsync(wg *sync.WaitGroup, handler *eventHandler, topic string, args ...interface{}) {
+	defer wg.Done()
 	if handler.transactional {
 		defer handler.Unlock()
 	}
@@ -210,6 +218,6 @@ func (bus *EventBus) setUpPublish(callback *eventHandler, args ...interface{}) [
 }
 
 // WaitAsync waits for all async callbacks to complete
-func (bus *EventBus) WaitAsync() {
-	bus.wg.Wait()
+func (bus *EventBus) WaitAsync(wg *sync.WaitGroup) {
+	wg.Wait()
 }
