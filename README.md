@@ -9,19 +9,19 @@ Package EventBus is the little and lightweight eventbus with async compatibility
 Make sure that Go is installed on your computer.
 Type the following command in your terminal:
 
-	go get github.com/asaskevich/EventBus
+	go get github.com/suisrc/EventBus
 
 After it the package is ready to use.
 
 #### Import package in your project
 Add following line in your `*.go` file:
 ```go
-import "github.com/asaskevich/EventBus"
+import "github.com/suisrc/EventBus"
 ```
 If you unhappy to use long `EventBus`, you can do something like this:
 ```go
 import (
-	evbus "github.com/asaskevich/EventBus"
+	evbus "github.com/suisrc/EventBus"
 )
 ```
 
@@ -35,6 +35,10 @@ func main() {
 	bus := EventBus.New();
 	bus.Subscribe("main:calculator", calculator);
 	bus.Publish("main:calculator", 20, 40);
+
+	wg := bus.PublishWaitAsync("main:calculator", 20, 40);
+	bus.WaitAsync(wg)
+
 	bus.Unsubscribe("main:calculator", calculator);
 }
 ```
@@ -46,6 +50,7 @@ func main() {
 * **HasCallback()**
 * **Unsubscribe()**
 * **Publish()**
+* **PublishWaitAsync()**
 * **SubscribeAsync()**
 * **SubscribeOnceAsync()**
 * **WaitAsync()**
