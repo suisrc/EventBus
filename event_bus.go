@@ -130,7 +130,7 @@ func (bus *EventBus) Unsubscribe(topic string, handler interface{}) error {
 func (bus *EventBus) Publish(topic string, args ...interface{}) {
 	// bus.lock.Lock() // will unlock if handler is not found or always after setUpPublish
 	// defer bus.lock.Unlock()
-	bus.PublishWaitAsync(topic, args)
+	bus.PublishWaitAsync(topic, args...)
 }
 
 // Publish executes callback defined for a topic. Any additional argument will be transferred to the callback.
