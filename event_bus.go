@@ -144,36 +144,35 @@ func (bus *EventBus) PublishWaitAsync(topic string, args ...interface{}) *sync.W
 		copyHandlers := make([]*eventHandler, len(handlers))
 		copy(copyHandlers, handlers)
 		for i, handler := range copyHandlers {
+			arguments, ok := bus.passedArguments(handler, args...)
+			if !ok {
+				continue // 参数类型不匹配
+			}
 			if handler.flagOnce {
 				bus.lock.Lock()             // 加锁map
 				bus.removeHandler(topic, i) // 修改map， Unsubscribe(topic, handler)
 				bus.lock.Unlock()           // 解锁map
 			}
 			if !handler.async {
-				bus.doPublish(handler, topic, args...)
+				handler.callBack.Call(arguments)
 			} else {
 				wg.Add(1)
 				if handler.transactional {
 					handler.Lock()
 				}
-				go bus.doPublishAsync(wg, handler, topic, args...)
+				go bus.doPublishAsync(wg, handler, arguments)
 			}
 		}
 	}
 	return wg
 }
 
-func (bus *EventBus) doPublish(handler *eventHandler, topic string, args ...interface{}) {
-	passedArguments := bus.setUpPublish(handler, args...)
-	handler.callBack.Call(passedArguments)
-}
-
-func (bus *EventBus) doPublishAsync(wg *sync.WaitGroup, handler *eventHandler, topic string, args ...interface{}) {
+func (bus *EventBus) doPublishAsync(wg *sync.WaitGroup, handler *eventHandler, arguments []reflect.Value) {
 	defer wg.Done()
 	if handler.transactional {
 		defer handler.Unlock()
 	}
-	bus.doPublish(handler, topic, args...)
+	handler.callBack.Call(arguments)
 }
 
 func (bus *EventBus) removeHandler(topic string, idx int) {
@@ -203,18 +202,24 @@ func (bus *EventBus) findHandlerIdx(topic string, callback reflect.Value) int {
 	return -1
 }
 
-func (bus *EventBus) setUpPublish(callback *eventHandler, args ...interface{}) []reflect.Value {
-	funcType := callback.callBack.Type()
-	passedArguments := make([]reflect.Value, len(args))
+// 处理调用的参数
+func (bus *EventBus) passedArguments(handler *eventHandler, args ...interface{}) ([]reflect.Value, bool) {
+	funcType := handler.callBack.Type()
+	if funcType.NumIn() == 0 {
+		return make([]reflect.Value, 0), true
+	}
+	arguments := make([]reflect.Value, len(args))
 	for i, v := range args {
 		if v == nil {
-			passedArguments[i] = reflect.New(funcType.In(i)).Elem()
+			arguments[i] = reflect.New(funcType.In(i)).Elem()
+		} else if !reflect.TypeOf(v).AssignableTo(funcType.In(i)) {
+			return nil, false // 参数类型无法匹配
 		} else {
-			passedArguments[i] = reflect.ValueOf(v)
+			arguments[i] = reflect.ValueOf(v)
 		}
 	}
 
-	return passedArguments
+	return arguments, true
 }
 
 // WaitAsync waits for all async callbacks to complete

@@ -43,6 +43,14 @@ func (client *Client) EventBus() Bus {
 	return client.eventBus
 }
 
+func (client *Client) Service() *ClientService {
+	return client.service
+}
+
+func (client *Client) Started() bool {
+	return client.service.started
+}
+
 func (client *Client) doSubscribe(topic string, fn interface{}, serverAddr, serverPath string, subscribeType SubscribeType) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -88,8 +96,8 @@ func (client *Client) Start() error {
 		if err == nil {
 			service.wg.Add(1)
 			service.started = true
-			go http.Serve(l, nil)	
-		}	
+			go http.Serve(l, nil)
+		}
 	} else {
 		err = errors.New("Client service already started")
 	}

@@ -58,6 +58,14 @@ func (server *Server) EventBus() Bus {
 	return server.eventBus
 }
 
+func (server *Server) Service() *ServerService {
+	return server.service
+}
+
+func (server *Server) Started() bool {
+	return server.service.started
+}
+
 func (server *Server) rpcCallback(subscribeArg *SubscribeArg) func(args ...interface{}) {
 	return func(args ...interface{}) {
 		client, connErr := rpc.DialHTTPPath("tcp", subscribeArg.ClientAddr, subscribeArg.ClientPath)
