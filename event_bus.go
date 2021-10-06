@@ -144,7 +144,7 @@ func (bus *EventBus) PublishWaitAsync(topic string, args ...interface{}) *sync.W
 		copyHandlers := make([]*eventHandler, len(handlers))
 		copy(copyHandlers, handlers)
 		for i, handler := range copyHandlers {
-			arguments, ok := bus.passedArguments(handler, args...)
+			arguments, ok := bus.PassedArguments(handler.callBack.Type(), args...)
 			if !ok {
 				continue // 参数类型不匹配
 			}
@@ -203,16 +203,29 @@ func (bus *EventBus) findHandlerIdx(topic string, callback reflect.Value) int {
 }
 
 // 处理调用的参数
-func (bus *EventBus) passedArguments(handler *eventHandler, args ...interface{}) ([]reflect.Value, bool) {
-	funcType := handler.callBack.Type()
+func (bus *EventBus) PassedArguments(funcType reflect.Type, args ...interface{}) ([]reflect.Value, bool) {
 	if funcType.NumIn() == 0 {
-		return make([]reflect.Value, 0), true
+		return make([]reflect.Value, 0), true // 无参数，直接调用
+	} else if funcType.NumIn() > len(args) {
+		return nil, false // 缺少参数，禁止调用
 	}
+	variadicIdx := funcType.NumIn() // 可变参数位置，不存在可变参数，idx为参数数量
+	if funcType.IsVariadic() {      // 具有可变参数，纠正可变参数位置
+		variadicIdx -= 1
+	} else if funcType.NumIn() != len(args) { // 不存在可变参数，参数数量不相等
+		return nil, false
+	}
+	// 处理参数
 	arguments := make([]reflect.Value, len(args))
 	for i, v := range args {
 		if v == nil {
-			arguments[i] = reflect.New(funcType.In(i)).Elem()
-		} else if !reflect.TypeOf(v).AssignableTo(funcType.In(i)) {
+			//arguments[i] = reflect.New(funcType.In(i)).Elem()
+			arguments[i] = reflect.ValueOf(nil)
+		} else if i >= variadicIdx && !reflect.TypeOf(v).AssignableTo(funcType.In(variadicIdx).Elem()) {
+			// variadic index
+			return nil, false // 可变参数不匹配
+		} else if i < variadicIdx && !reflect.TypeOf(v).AssignableTo(funcType.In(i)) {
+			// ConvertibleTo or AssignableTo 不知道其区别， 懂的可以解释一下
 			return nil, false // 参数类型无法匹配
 		} else {
 			arguments[i] = reflect.ValueOf(v)
