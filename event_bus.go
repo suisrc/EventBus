@@ -209,9 +209,11 @@ func (bus *EventBus) PassedArguments(funcType reflect.Type, args ...interface{})
 	} else if funcType.NumIn() > len(args) {
 		return nil, false // 缺少参数，禁止调用
 	}
+	var variadicType reflect.Type
 	variadicIdx := funcType.NumIn() // 可变参数位置，不存在可变参数，idx为参数数量
 	if funcType.IsVariadic() {      // 具有可变参数，纠正可变参数位置
 		variadicIdx -= 1
+		variadicType = funcType.In(variadicIdx).Elem()
 	} else if funcType.NumIn() != len(args) { // 不存在可变参数，参数数量不相等
 		return nil, false
 	}
@@ -221,7 +223,7 @@ func (bus *EventBus) PassedArguments(funcType reflect.Type, args ...interface{})
 		if v == nil {
 			//arguments[i] = reflect.New(funcType.In(i)).Elem()
 			arguments[i] = reflect.ValueOf(nil)
-		} else if i >= variadicIdx && !reflect.TypeOf(v).AssignableTo(funcType.In(variadicIdx).Elem()) {
+		} else if i >= variadicIdx && !reflect.TypeOf(v).AssignableTo(variadicType) {
 			// variadic index
 			return nil, false // 可变参数不匹配
 		} else if i < variadicIdx && !reflect.TypeOf(v).AssignableTo(funcType.In(i)) {
