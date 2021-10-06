@@ -206,16 +206,17 @@ func (bus *EventBus) findHandlerIdx(topic string, callback reflect.Value) int {
 func (bus *EventBus) PassedArguments(funcType reflect.Type, args ...interface{}) ([]reflect.Value, bool) {
 	if funcType.NumIn() == 0 {
 		return make([]reflect.Value, 0), true // 无参数，直接调用
-	} else if funcType.NumIn() > len(args) {
-		return nil, false // 缺少参数，禁止调用
 	}
 	var variadicType reflect.Type
 	variadicIdx := funcType.NumIn() // 可变参数位置，不存在可变参数，idx为参数数量
 	if funcType.IsVariadic() {      // 具有可变参数，纠正可变参数位置
+		if funcType.NumIn()-1 > len(args) {
+			return nil, false // 缺少参数，禁止调用
+		}
 		variadicIdx -= 1
 		variadicType = funcType.In(variadicIdx).Elem()
-	} else if funcType.NumIn() != len(args) { // 不存在可变参数，参数数量不相等
-		return nil, false
+	} else if funcType.NumIn() != len(args) {
+		return nil, false // 不存在可变参数，参数数量不相等
 	}
 	// 处理参数
 	arguments := make([]reflect.Value, len(args))

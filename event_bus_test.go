@@ -118,6 +118,15 @@ func TestPublish(t *testing.T) {
 	bus.Publish("topic", 10, nil)
 }
 
+func TestPublishVarArgs(t *testing.T) {
+	bus := EventBus.New()
+	bus.Subscribe("topic", func(k string, a ...int) {
+		fmt.Println(len(a))
+	})
+	bus.Publish("topic", "123", 9, 8, 7)
+	t.Fail()
+}
+
 func TestSubcribeOnceAsync(t *testing.T) {
 	results := make([]int, 0)
 

@@ -50,6 +50,8 @@ func Test003(t *testing.T) {
 
 	fmt.Println(ok)
 	t.Fail()
+
+	t05(b)
 }
 
 func t01(tc TC)                    {}
