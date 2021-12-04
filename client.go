@@ -76,7 +76,7 @@ func (client *Client) doSubscribe(topic string, fn interface{}, serverAddr, serv
 
 //Subscribe subscribes to a topic in a remote event bus
 func (client *Client) Subscribe(topic string, fn interface{}, serverAddr, serverPath string) {
-	client.doSubscribe(topic, fn, serverAddr, serverPath, Subscribe)
+	client.doSubscribe(topic, fn, serverAddr, serverPath, SubscribeAll)
 }
 
 //SubscribeOnce subscribes once to a topic in a remote event bus

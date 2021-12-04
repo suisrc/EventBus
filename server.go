@@ -14,7 +14,7 @@ type SubscribeType int
 
 const (
 	// Subscribe - subscribe to all events
-	Subscribe SubscribeType = iota
+	SubscribeAll SubscribeType = iota
 	// SubscribeOnce - subscribe to only one event
 	SubscribeOnce
 )
@@ -142,7 +142,7 @@ func (service *ServerService) Register(arg *SubscribeArg, success *bool) error {
 	if !service.server.HasClientSubscribed(arg) {
 		rpcCallback := service.server.rpcCallback(arg)
 		switch arg.SubscribeType {
-		case Subscribe:
+		case SubscribeAll:
 			service.server.eventBus.Subscribe(arg.Topic, rpcCallback)
 		case SubscribeOnce:
 			service.server.eventBus.SubscribeOnce(arg.Topic, rpcCallback)

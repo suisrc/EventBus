@@ -30,7 +30,7 @@ func TestRegister(t *testing.T) {
 	serverPath := "/_server_bus_"
 	serverBus := EventBus.NewServer(":2010", serverPath, EventBus.New())
 
-	args := &EventBus.SubscribeArg{":2010", serverPath, EventBus.PublishService, EventBus.Subscribe, "topic"}
+	args := &EventBus.SubscribeArg{":2010", serverPath, EventBus.PublishService, EventBus.SubscribeAll, "topic"}
 	reply := new(bool)
 
 	serverBus.Service().Register(args, reply)
