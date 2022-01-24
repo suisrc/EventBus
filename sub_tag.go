@@ -52,7 +52,7 @@ func SubscribeTag(bus Bus, data interface{}, verify bool, tag string) (func(), e
 			}
 			kind := BusAsync
 			topic := conf
-			if conf != "" && conf[0] != '~' {
+			if conf != "" && conf[0] == '~' {
 				kind = BusSync
 				topic = conf[1:]
 			}
